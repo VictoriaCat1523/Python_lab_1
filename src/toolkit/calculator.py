@@ -1,3 +1,21 @@
+from decimal import Decimal, ROUND_FLOOR, getcontext
+getcontext().prec = 50
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if self.is_empty():
+            raise ValueError("Некорректное выражение")
+        return self.items.pop()
+
+    def is_empty(self):
+        return self.items == []
+
 def add_number(tokens, number):
     if number == "":
         return
@@ -182,3 +200,76 @@ def to_rpn(tokens):
         raise ValueError("Некорректное выражение")
 
     return rpn
+
+def calculate_rpn(rpn):
+    stack = Stack()
+
+    for token_type, value in rpn:
+
+        if token_type == "NUMBER":
+            stack.push(Decimal(value))
+
+        elif value == "u+":
+            a = stack.pop()
+            stack.push(a)
+
+        elif value == "u-":
+            a = stack.pop()
+            stack.push(-a)
+
+        else:
+            b = stack.pop()
+            a = stack.pop()
+
+            if value == "+":
+                stack.push(a + b)
+
+            elif value == "-":
+                stack.push(a - b)
+
+            elif value == "*":
+                stack.push(a * b)
+
+            elif value == "/":
+                if b == 0:
+                    raise ZeroDivisionError("Деление на ноль")
+
+                stack.push(a / b)
+
+            elif value == "//":
+                if b == 0:
+                    raise ZeroDivisionError("Деление на ноль")
+
+                result = (a / b).to_integral_value(
+                    rounding=ROUND_FLOOR
+                )
+
+                stack.push(result)
+
+            elif value == "%":
+                if b == 0:
+                    raise ZeroDivisionError("Деление на ноль")
+
+                q = (a / b).to_integral_value(
+                    rounding=ROUND_FLOOR
+                )
+
+                stack.push(a - b * q)
+
+            elif value == "":
+                stack.push(a ** b)
+
+    if len(stack.items) != 1:
+        raise ValueError("Некорректное выражение")
+
+    return stack.pop()
+
+
+def calculator(expr):
+    tokens = tokenize_char(expr)
+
+    rpn = to_rpn(tokens)
+
+    result = calculate_rpn(rpn)
+
+    return result
