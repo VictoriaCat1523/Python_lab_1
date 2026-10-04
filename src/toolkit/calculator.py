@@ -1,22 +1,37 @@
-from decimal import Decimal, ROUND_FLOOR, getcontext
+"""Калькулятор математических выражений."""
+
+from decimal import ROUND_FLOOR, Decimal, getcontext
+
 getcontext().prec = 50
 
-class Stack:
-    def __init__(self):
-        self.items = []
+Token = tuple[str, str]
 
-    def push(self, item):
+
+class Stack:
+    """Простой стек для вычисления выражений в обратной польской записи."""
+
+    def __init__(self) -> None:
+        """Создаёт пустой стек."""
+        self.items: list[Decimal] = []
+
+    def push(self, item: Decimal) -> None:
+        """Добавляет элемент на вершину стека."""
         self.items.append(item)
 
-    def pop(self):
+    def pop(self) -> Decimal:
+        """Удаляет и возвращает верхний элемент стека."""
         if self.is_empty():
             raise ValueError("Некорректное выражение")
+
         return self.items.pop()
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
+        """Проверяет, является ли стек пустым."""
         return self.items == []
 
-def add_number(tokens, number):
+
+def add_number(tokens: list[Token], number: str) -> None:
+    """Добавляет число в список токенов после проверки его записи."""
     if number == "":
         return
 
@@ -26,11 +41,12 @@ def add_number(tokens, number):
     tokens.append(("NUMBER", number))
 
 
-def tokenize_char(expr: str):
+def tokenize_char(expr: str) -> list[Token]:
+    """Разбивает математическое выражение на токены."""
     if expr.strip() == "":
         raise ValueError("Введена пустая строка")
 
-    tokens = []
+    tokens: list[Token] = []
     number = ""
     i = 0
 
@@ -52,7 +68,6 @@ def tokenize_char(expr: str):
         elif char in "+-%":
             add_number(tokens, number)
             number = ""
-
             tokens.append(("OPERATOR", char))
             i += 1
 
@@ -81,7 +96,6 @@ def tokenize_char(expr: str):
         elif char in "()":
             add_number(tokens, number)
             number = ""
-
             tokens.append(("BRACKET", char))
             i += 1
 
@@ -93,25 +107,85 @@ def tokenize_char(expr: str):
     return tokens
 
 
-def to_rpn(tokens):
-    rpn = []
+def validate_tokens(tokens: list[Token]) -> None:
+    """Проверяет синтаксическую корректность последовательности токенов."""
+    if len(tokens) == 0:
+        raise ValueError("Пустое выражение")
+
+    balance = 0
+    expect_value = True
+
+    for token_type, value in tokens:
+        if token_type == "NUMBER":
+            if not expect_value:
+                raise ValueError("Некорректная запись выражения")
+
+            expect_value = False
+
+        elif token_type == "BRACKET":
+            if value == "(":
+                if not expect_value:
+                    raise ValueError("Некорректная запись выражения")
+
+                balance += 1
+                expect_value = True
+
+            elif value == ")":
+                if expect_value:
+                    raise ValueError("Некорректная запись выражения")
+
+                balance -= 1
+
+                if balance < 0:
+                    raise ValueError("Некорректная запись скобок")
+
+                expect_value = False
+
+        elif token_type == "OPERATOR":
+            if value in ("+", "-") and expect_value:
+                continue
+
+            if expect_value:
+                raise ValueError("Некорректная запись выражения")
+
+            expect_value = True
+
+        else:
+            raise ValueError("Некорректный токен")
+
+    if balance != 0:
+        raise ValueError("Некорректная запись скобок")
+
+    if expect_value:
+        raise ValueError("Некорректная запись выражения")
+
+
+def to_rpn(tokens: list[Token]) -> list[Token]:
+    """Преобразует список токенов в обратную польскую запись."""
+    rpn: list[Token] = []
     i = 0
 
-    def current():
+    def current() -> Token | None:
+        """Возвращает текущий токен."""
         if i >= len(tokens):
             return None
+
         return tokens[i]
 
-    def match(value):
+    def match(value: str) -> bool:
+        """Проверяет текущий токен и сдвигает позицию при совпадении."""
         nonlocal i
 
         token = current()
+
         if token is not None and token[1] == value:
             i += 1
             return True
+
         return False
 
-    def expr():
+    def expr() -> None:
+        """Обрабатывает операции сложения и вычитания."""
         term()
 
         while True:
@@ -126,7 +200,8 @@ def to_rpn(tokens):
             else:
                 break
 
-    def term():
+    def term() -> None:
+        """Обрабатывает умножение, деление и остаток от деления."""
         unary()
 
         while True:
@@ -149,7 +224,8 @@ def to_rpn(tokens):
             else:
                 break
 
-    def unary():
+    def unary() -> None:
+        """Обрабатывает унарные операторы плюс и минус."""
         if match("+"):
             unary()
             rpn.append(("OPERATOR", "u+"))
@@ -161,14 +237,16 @@ def to_rpn(tokens):
         else:
             power()
 
-    def power():
+    def power() -> None:
+        """Обрабатывает операцию возведения в степень."""
         primary()
 
         if match("**"):
             unary()
             rpn.append(("OPERATOR", "**"))
 
-    def primary():
+    def primary() -> None:
+        """Обрабатывает числа и выражения в скобках."""
         nonlocal i
 
         token = current()
@@ -194,18 +272,16 @@ def to_rpn(tokens):
     expr()
 
     if i != len(tokens):
-        if current()[1] == ")":
-            raise ValueError("Лишняя закрывающая скобка")
-
         raise ValueError("Некорректное выражение")
 
     return rpn
 
-def calculate_rpn(rpn):
+
+def calculate_rpn(rpn: list[Token]) -> Decimal:
+    """Вычисляет выражение, записанное в обратной польской форме."""
     stack = Stack()
 
     for token_type, value in rpn:
-
         if token_type == "NUMBER":
             stack.push(Decimal(value))
 
@@ -241,9 +317,8 @@ def calculate_rpn(rpn):
                     raise ZeroDivisionError("Деление на ноль")
 
                 result = (a / b).to_integral_value(
-                    rounding=ROUND_FLOOR
+                    rounding=ROUND_FLOOR,
                 )
-
                 stack.push(result)
 
             elif value == "%":
@@ -251,13 +326,15 @@ def calculate_rpn(rpn):
                     raise ZeroDivisionError("Деление на ноль")
 
                 q = (a / b).to_integral_value(
-                    rounding=ROUND_FLOOR
+                    rounding=ROUND_FLOOR,
                 )
-
                 stack.push(a - b * q)
 
-            elif value == "":
-                stack.push(a ** b)
+            elif value == "**":
+                stack.push(a**b)
+
+            else:
+                raise ValueError("Неизвестный оператор")
 
     if len(stack.items) != 1:
         raise ValueError("Некорректное выражение")
@@ -265,11 +342,10 @@ def calculate_rpn(rpn):
     return stack.pop()
 
 
-def calculator(expr):
+def calculator(expr: str) -> Decimal:
+    """Вычисляет математическое выражение и возвращает результат."""
     tokens = tokenize_char(expr)
-
+    validate_tokens(tokens)
     rpn = to_rpn(tokens)
 
-    result = calculate_rpn(rpn)
-
-    return result
+    return calculate_rpn(rpn)
