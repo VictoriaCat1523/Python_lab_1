@@ -1,8 +1,11 @@
 """Калькулятор математических выражений."""
 
-from decimal import ROUND_FLOOR, Decimal, getcontext
+from decimal import ROUND_FLOOR, ROUND_HALF_EVEN, Decimal, getcontext
+
+from .errors import CalculatorError
 
 getcontext().prec = 50
+getcontext().rounding = ROUND_HALF_EVEN
 
 Token = tuple[str, str]
 
@@ -21,7 +24,7 @@ class Stack:
     def pop(self) -> Decimal:
         """Удаляет и возвращает верхний элемент стека."""
         if self.is_empty():
-            raise ValueError("Некорректное выражение")
+            raise CalculatorError("Некорректное выражение")
 
         return self.items.pop()
 
@@ -36,7 +39,7 @@ def add_number(tokens: list[Token], number: str) -> None:
         return
 
     if number.startswith(".") or number.endswith("."):
-        raise ValueError("Некорректная запись вещественного числа")
+        raise CalculatorError("Некорректная запись вещественного числа")
 
     tokens.append(("NUMBER", number))
 
@@ -44,7 +47,7 @@ def add_number(tokens: list[Token], number: str) -> None:
 def tokenize_char(expr: str) -> list[Token]:
     """Разбивает математическое выражение на токены."""
     if expr.strip() == "":
-        raise ValueError("Введена пустая строка")
+        raise CalculatorError("Введена пустая строка")
 
     tokens: list[Token] = []
     number = ""
@@ -55,7 +58,7 @@ def tokenize_char(expr: str) -> list[Token]:
 
         if char.isdigit() or char == ".":
             if char == "." and "." in number:
-                raise ValueError("Некорректная запись вещественного числа")
+                raise CalculatorError("Некорректная запись вещественного числа")
 
             number += char
             i += 1
@@ -100,7 +103,7 @@ def tokenize_char(expr: str) -> list[Token]:
             i += 1
 
         else:
-            raise ValueError(f"Неизвестный символ: {char}")
+            raise CalculatorError(f"Неизвестный символ: {char}")
 
     add_number(tokens, number)
 
@@ -110,7 +113,7 @@ def tokenize_char(expr: str) -> list[Token]:
 def validate_tokens(tokens: list[Token]) -> None:
     """Проверяет синтаксическую корректность последовательности токенов."""
     if len(tokens) == 0:
-        raise ValueError("Пустое выражение")
+        raise CalculatorError("Пустое выражение")
 
     balance = 0
     expect_value = True
@@ -118,26 +121,26 @@ def validate_tokens(tokens: list[Token]) -> None:
     for token_type, value in tokens:
         if token_type == "NUMBER":
             if not expect_value:
-                raise ValueError("Некорректная запись выражения")
+                raise CalculatorError("Некорректная запись выражения")
 
             expect_value = False
 
         elif token_type == "BRACKET":
             if value == "(":
                 if not expect_value:
-                    raise ValueError("Некорректная запись выражения")
+                    raise CalculatorError("Некорректная запись выражения")
 
                 balance += 1
                 expect_value = True
 
             elif value == ")":
                 if expect_value:
-                    raise ValueError("Некорректная запись выражения")
+                    raise CalculatorError("Некорректная запись выражения")
 
                 balance -= 1
 
                 if balance < 0:
-                    raise ValueError("Некорректная запись скобок")
+                    raise CalculatorError("Некорректная запись скобок")
 
                 expect_value = False
 
@@ -146,18 +149,18 @@ def validate_tokens(tokens: list[Token]) -> None:
                 continue
 
             if expect_value:
-                raise ValueError("Некорректная запись выражения")
+                raise CalculatorError("Некорректная запись выражения")
 
             expect_value = True
 
         else:
-            raise ValueError("Некорректный токен")
+            raise CalculatorError("Некорректный токен")
 
     if balance != 0:
-        raise ValueError("Некорректная запись скобок")
+        raise CalculatorError("Некорректная запись скобок")
 
     if expect_value:
-        raise ValueError("Некорректная запись выражения")
+        raise CalculatorError("Некорректная запись выражения")
 
 
 def to_rpn(tokens: list[Token]) -> list[Token]:
@@ -252,7 +255,7 @@ def to_rpn(tokens: list[Token]) -> list[Token]:
         token = current()
 
         if token is None:
-            raise ValueError("Ожидалось число или '('")
+            raise CalculatorError("Ожидалось число или '('")
 
         if token[0] == "NUMBER":
             rpn.append(token)
@@ -263,16 +266,16 @@ def to_rpn(tokens: list[Token]) -> list[Token]:
             expr()
 
             if not match(")"):
-                raise ValueError("Отсутствует закрывающая скобка")
+                raise CalculatorError("Отсутствует закрывающая скобка")
 
             return
 
-        raise ValueError("Ожидалось число или '('")
+        raise CalculatorError("Ожидалось число или '('")
 
     expr()
 
     if i != len(tokens):
-        raise ValueError("Некорректное выражение")
+        raise CalculatorError("Некорректное выражение")
 
     return rpn
 
@@ -334,10 +337,10 @@ def calculate_rpn(rpn: list[Token]) -> Decimal:
                 stack.push(a**b)
 
             else:
-                raise ValueError("Неизвестный оператор")
+                raise CalculatorError("Неизвестный оператор")
 
     if len(stack.items) != 1:
-        raise ValueError("Некорректное выражение")
+        raise CalculatorError("Некорректное выражение")
 
     return stack.pop()
 

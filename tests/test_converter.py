@@ -99,9 +99,22 @@ def test_unit_case():
 def test_number_values():
     assert convert("1.25", "kg", "g") == Decimal(1250)
     assert convert("0.001", "m", "mm") == Decimal(1)
-    assert convert("-2", "m", "cm") == Decimal(-200)
     assert convert("0", "km", "m") == Decimal(0)
 
+def test_negative_length():
+    with pytest.raises(
+        ValueError,
+        match="Длина не может быть отрицательной",
+    ):
+        convert("-2", "m", "cm")
+
+
+def test_negative_mass():
+    with pytest.raises(
+        ValueError,
+        match="Масса не может быть отрицательной",
+    ):
+        convert("-2", "kg", "g")
 
 def test_invalid_number():
     with pytest.raises(ValueError):

@@ -1,6 +1,6 @@
 """Конвертер единиц измерения."""
 
-from decimal import Decimal, InvalidOperation, getcontext
+from decimal import Decimal, InvalidOperation
 
 from .constants import (
     ABSOLUTE_ZERO_C,
@@ -9,7 +9,6 @@ from .constants import (
     ABSOLUTE_ZERO_K,
     C_TO_F_RATIO,
     CELSIUS_TO_KELVIN,
-    DECIMAL_PRECISION,
     F_TO_C_RATIO,
     FAHRENHEIT_OFFSET,
     INCOMPATIBLE_UNITS_ERROR,
@@ -18,12 +17,13 @@ from .constants import (
     LENGTH_UNITS,
     MASS_COEFFICIENTS,
     MASS_UNITS,
+    NEGATIVE_LENGTH_ERROR,
+    NEGATIVE_MASS_ERROR,
     SUPPORTED_UNITS,
     TEMPERATURE_UNITS,
     UNKNOWN_UNIT_ERROR,
 )
-
-getcontext().prec = DECIMAL_PRECISION
+from .errors import ConverterError
 
 
 def convert_length(
@@ -60,7 +60,7 @@ def convert_temperature(
     """Преобразует температуру между поддерживаемыми шкалами."""
     if from_unit == "c":
         if num < ABSOLUTE_ZERO_C:
-            raise ValueError(ABSOLUTE_ZERO_ERROR)
+            raise ConverterError(ABSOLUTE_ZERO_ERROR)
 
         if to_unit == "c":
             return num
@@ -73,7 +73,7 @@ def convert_temperature(
 
     if from_unit == "k":
         if num < ABSOLUTE_ZERO_K:
-            raise ValueError(ABSOLUTE_ZERO_ERROR)
+            raise ConverterError(ABSOLUTE_ZERO_ERROR)
 
         if to_unit == "k":
             return num
@@ -90,7 +90,7 @@ def convert_temperature(
 
     if from_unit == "f":
         if num < ABSOLUTE_ZERO_F:
-            raise ValueError(ABSOLUTE_ZERO_ERROR)
+            raise ConverterError(ABSOLUTE_ZERO_ERROR)
 
         if to_unit == "f":
             return num
@@ -105,7 +105,7 @@ def convert_temperature(
                 + CELSIUS_TO_KELVIN
             )
 
-    raise ValueError(INCOMPATIBLE_UNITS_ERROR)
+    raise ConverterError(INCOMPATIBLE_UNITS_ERROR)
 
 
 def convert(
@@ -120,30 +120,36 @@ def convert(
     try:
         value = Decimal(str(num))
     except InvalidOperation as error:
-        raise ValueError(INVALID_NUMBER_ERROR) from error
+        raise ConverterError(INVALID_NUMBER_ERROR) from error
 
     if not value.is_finite():
-        raise ValueError(INVALID_NUMBER_ERROR)
+        raise ConverterError(INVALID_NUMBER_ERROR)
 
     if from_unit not in SUPPORTED_UNITS or to_unit not in SUPPORTED_UNITS:
-        raise ValueError(UNKNOWN_UNIT_ERROR)
+        raise ConverterError(UNKNOWN_UNIT_ERROR)
 
     if from_unit in LENGTH_UNITS:
         if to_unit not in LENGTH_UNITS:
-            raise ValueError(INCOMPATIBLE_UNITS_ERROR)
+            raise ConverterError(INCOMPATIBLE_UNITS_ERROR)
+
+        if value < 0:
+            raise ConverterError(NEGATIVE_LENGTH_ERROR)
 
         return convert_length(value, from_unit, to_unit)
 
     if from_unit in MASS_UNITS:
         if to_unit not in MASS_UNITS:
-            raise ValueError(INCOMPATIBLE_UNITS_ERROR)
+            raise ConverterError(INCOMPATIBLE_UNITS_ERROR)
+
+        if value < 0:
+            raise ConverterError(NEGATIVE_MASS_ERROR)
 
         return convert_mass(value, from_unit, to_unit)
 
     if from_unit in TEMPERATURE_UNITS:
         if to_unit not in TEMPERATURE_UNITS:
-            raise ValueError(INCOMPATIBLE_UNITS_ERROR)
+            raise ConverterError(INCOMPATIBLE_UNITS_ERROR)
 
         return convert_temperature(value, from_unit, to_unit)
 
-    raise ValueError(UNKNOWN_UNIT_ERROR)
+    raise ConverterError(UNKNOWN_UNIT_ERROR)

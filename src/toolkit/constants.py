@@ -1,6 +1,9 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, getcontext
 
 DECIMAL_PRECISION = 50
+
+getcontext().prec = DECIMAL_PRECISION
+getcontext().rounding = ROUND_HALF_EVEN
 
 LENGTH_UNITS = ("km", "m", "cm", "mm")
 MASS_UNITS = ("kg", "g")
@@ -39,3 +42,5 @@ UNKNOWN_UNIT_ERROR = "Неизвестная единица измерения"
 INCOMPATIBLE_UNITS_ERROR = "Несовместимые единицы измерения"
 ABSOLUTE_ZERO_ERROR = "Температура ниже абсолютного нуля"
 INVALID_NUMBER_ERROR = "Некорректное число"
+NEGATIVE_LENGTH_ERROR = "Длина не может быть отрицательной"
+NEGATIVE_MASS_ERROR = "Масса не может быть отрицательной"
